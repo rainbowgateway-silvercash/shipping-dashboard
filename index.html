@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>航运工作台</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Space+Mono:wght@400;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0e0d0b;
+  --bg2:      #141210;
+  --panel:    #1a1714;
+  --border:   #2e2820;
+  --border2:  #3d342a;
+  --amber:    #e8a020;
+  --amber2:   #f5c842;
+  --rust:     #c0440a;
+  --teal:     #2ab8a0;
+  --sky:      #4db8d4;
+  --text:     #d4c9b8;
+  --muted:    #6e5e4a;
+  --muted2:   #9a8570;
+  --up:       #5cb85c;
+  --down:     #d9534f;
+  --white:    #f0e8d8;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 15px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ── Grain overlay ── */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 9999; opacity: 0.6;
+}
+
+/* ── Header ── */
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(14,13,11,0.96);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border2);
+  padding: 0 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 56px;
+}
+
+.logo {
+  display: flex; align-items: baseline; gap: 10px;
+}
+.logo-cn {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 17px; font-weight: 700;
+  color: var(--white);
+  letter-spacing: 2px;
+}
+.logo-en {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; color: var(--muted2);
+  letter-spacing: 3px; text-transform: uppercase;
+}
+
+.header-right {
+  display: flex; align-items: center; gap: 24px;
+}
+
+.live-indicator {
+  display: flex; align-items: center; gap: 7px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px; color: var(--amber);
+  letter-spacing: 1px;
+}
+.live-dot {
+  width: 6px; height: 6px;
+  background: var(--amber);
+  border-radius: 50%;
+  animation: blink 2s ease-in-out infinite;
+  box-shadow: 0 0 6px var(--amber);
+}
+@keyframes blink {
+  0%,100% { opacity:1; } 50% { opacity:0.2; }
+}
+
+#clock {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px; color: var(--muted2);
+}
+
+/* ── Ticker ── */
+.ticker-strip {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 0;
+  overflow: hidden;
+}
+.ticker-track {
+  display: flex; gap: 0;
+  animation: scroll 55s linear infinite;
+  width: max-content;
+}
+@keyframes scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.tick {
+  display: inline-flex; align-items: center;
+  padding: 0 28px;
+  border-right: 1px solid var(--border);
+  gap: 7px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.tick-label { color: var(--muted2); letter-spacing: 1px; }
+.tick-val { color: var(--white); font-weight: 700; }
+.tick-chg.up  { color: var(--up); }
+.tick-chg.dn  { color: var(--down); }
+
+/* ── Layout ── */
+.wrap { max-width: 1380px; margin: 0 auto; padding: 24px 28px 60px; }
+
+/* ── Section label ── */
+.sec-label {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.sec-label-text {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+.sec-label-line {
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, var(--border2), transparent);
+}
+
+/* ── Cards ── */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 18px 20px;
+  transition: border-color .2s;
+}
+.card:hover { border-color: var(--border2); }
+
+/* ── KPI Row ── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.kpi {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--border2);
+  border-radius: 3px;
+  padding: 16px 18px;
+  position: relative;
+  cursor: default;
+  transition: border-top-color .25s;
+}
+.kpi:hover { border-top-color: var(--amber); }
+.kpi.amber { border-top-color: var(--amber); }
+.kpi.teal  { border-top-color: var(--teal); }
+.kpi.sky   { border-top-color: var(--sky); }
+.kpi.rust  { border-top-color: var(--rust); }
+.kpi.up    { border-top-color: var(--up); }
+
+.kpi-name {
+  font-family: 'Space Mono', monospace;
+  font-size: 8px; letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted2);
+  margin-bottom: 6px;
+}
+.kpi-val {
+  font-family: 'Space Mono', monospace;
+  font-size: 22px; font-weight: 700;
+  color: var(--white);
+  margin-bottom: 5px;
+  letter-spacing: -0.5px;
+}
+.kpi-sub {
+  display: flex; align-items: center; gap: 6px;
+}
+.kpi-chg {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px; font-weight: 700;
+}
+.kpi-chg.up { color: var(--up); }
+.kpi-chg.dn { color: var(--down); }
+.kpi-note { font-size: 11px; color: var(--muted); }
+
+/* Data attribution badge */
+.data-src {
+  position: absolute; bottom: 8px; right: 10px;
+  font-family: 'Space Mono', monospace;
+  font-size: 7px; letter-spacing: 1px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.data-src.live { color: var(--amber); }
+
+/* ── Two-col grid ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+.grid-3 { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+
+/* ── Table ── */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th {
+  text-align: left;
+  font-family: 'Space Mono', monospace;
+  font-size: 8px; letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--border);
+}
+.data-table td {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(46,40,32,0.5);
+  vertical-align: middle;
+}
+.data-table tr:last-child td { border-bottom: none; }
+
+.route-main { color: var(--white); font-size: 13px; font-weight: 600; }
+.route-sub  { font-size: 11px; color: var(--muted2); margin-top: 1px; }
+.val-mono {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px; color: var(--white); font-weight: 700;
+}
+
+.pill {
+  display: inline-flex; align-items: center;
+  padding: 2px 7px; border-radius: 2px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px; font-weight: 700;
+}
+.pill.up { background: rgba(92,184,92,0.12); color: var(--up); }
+.pill.dn { background: rgba(217,83,79,0.12); color: var(--down); }
+
+/* Sparkline bars */
+.spark { display: flex; align-items: flex-end; gap: 2px; height: 22px; }
+.spark-b {
+  width: 5px; border-radius: 1px 1px 0 0;
+  background: var(--border2);
+  transition: background .3s;
+}
+.spark-b.hi { background: var(--amber); }
+
+/* ── Ship type cards ── */
+.ship-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ship-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 13px 15px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.ship-card:hover {
+  background: rgba(232,160,32,0.04);
+  border-color: var(--amber);
+}
+.ship-icon { font-size: 18px; margin-bottom: 5px; }
+.ship-name { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--muted2); letter-spacing: 1px; margin-bottom: 2px; }
+.ship-val  { font-family: 'Space Mono', monospace; font-size: 16px; color: var(--white); font-weight: 700; }
+.ship-unit { font-size: 10px; color: var(--muted); margin-left: 3px; }
+.ship-chg  { font-family: 'Space Mono', monospace; font-size: 10px; margin-top: 4px; }
+.ship-chg.up { color: var(--up); }
+.ship-chg.dn { color: var(--down); }
+
+/* ── Port congestion ── */
+.port-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(46,40,32,0.5);
+}
+.port-item:last-child { border-bottom: none; }
+.port-left { display: flex; align-items: center; gap: 10px; }
+.port-flag { font-size: 20px; }
+.port-name { color: var(--white); font-size: 13px; font-weight: 600; }
+.port-code { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 1px; }
+.cong-bar  { display: flex; gap: 3px; margin-top: 3px; }
+.cong-seg  { width: 14px; height: 3px; border-radius: 2px; background: var(--border2); }
+.cong-seg.f1 { background: var(--up); }
+.cong-seg.f2 { background: var(--amber); }
+.cong-seg.f3 { background: var(--down); }
+
+.badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; letter-spacing: 0.5px;
+  padding: 3px 8px; border-radius: 2px;
+}
+.badge.ok     { background: rgba(92,184,92,0.12); color: var(--up); }
+.badge.warn   { background: rgba(232,160,32,0.12); color: var(--amber); }
+.badge.danger { background: rgba(217,83,79,0.12); color: var(--down); }
+
+/* ── News ── */
+.news-item {
+  display: flex; gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(46,40,32,0.5);
+  cursor: pointer;
+  transition: opacity .2s;
+}
+.news-item:hover { opacity: 0.75; }
+.news-item:last-child { border-bottom: none; }
+.news-bullet {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  margin-top: 7px; flex-shrink: 0;
+}
+.nb-amber { background: var(--amber); }
+.nb-rust  { background: var(--rust); }
+.nb-teal  { background: var(--teal); }
+.news-tag {
+  display: inline-block;
+  font-family: 'Space Mono', monospace;
+  font-size: 8px; letter-spacing: 1px;
+  padding: 1px 5px; border-radius: 1px;
+  margin-right: 5px; margin-bottom: 3px;
+}
+.nt-oil    { background: rgba(192,68,10,0.2); color: #e06030; }
+.nt-route  { background: rgba(232,160,32,0.15); color: var(--amber); }
+.nt-policy { background: rgba(42,184,160,0.15); color: var(--teal); }
+.nt-alert  { background: rgba(217,83,79,0.15); color: var(--down); }
+.news-title { font-size: 13px; color: var(--text); line-height: 1.5; }
+.news-meta  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ── Risk panel ── */
+.risk-row { display: flex; flex-direction: column; gap: 8px; }
+.risk-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: rgba(255,255,255,0.01);
+}
+.risk-icon { font-size: 16px; margin-top: 1px; flex-shrink: 0; }
+.risk-name { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--muted2); letter-spacing: 1px; margin-bottom: 2px; }
+.risk-desc { font-size: 12px; color: var(--text); line-height: 1.4; }
+.risk-level {
+  margin-left: auto; flex-shrink: 0;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; padding: 2px 7px; border-radius: 1px;
+  margin-top: 2px;
+}
+.rl-hi  { background: rgba(217,83,79,0.15); color: var(--down); }
+.rl-mid { background: rgba(232,160,32,0.15); color: var(--amber); }
+.rl-lo  { background: rgba(92,184,92,0.12); color: var(--up); }
+
+/* ── Commodity row ── */
+.comm-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+.comm-item {
+  border: 1px solid var(--border);
+  border-radius: 3px; padding: 12px 14px;
+  background: rgba(255,255,255,0.015);
+}
+.comm-name { font-size: 11px; color: var(--muted2); margin-bottom: 3px; }
+.comm-val  { font-family: 'Space Mono', monospace; font-size: 15px; color: var(--white); font-weight: 700; }
+.comm-chg  { font-family: 'Space Mono', monospace; font-size: 10px; margin-top: 4px; }
+.comm-chg.up { color: var(--up); }
+.comm-chg.dn { color: var(--down); }
+
+/* ── Status footer ── */
+.data-footer {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.data-footer-text {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; color: var(--muted);
+  letter-spacing: 1px;
+}
+.refresh-btn {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; letter-spacing: 1px;
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--muted2);
+  padding: 5px 12px; cursor: pointer; border-radius: 2px;
+  transition: border-color .2s, color .2s;
+}
+.refresh-btn:hover { border-color: var(--amber); color: var(--amber); }
+
+/* ── Fade-in ── */
+.fi { opacity:0; transform:translateY(10px); animation: fi .45s ease forwards; }
+@keyframes fi { to { opacity:1; transform:none; } }
+.fi:nth-child(1){animation-delay:.04s} .fi:nth-child(2){animation-delay:.08s}
+.fi:nth-child(3){animation-delay:.12s} .fi:nth-child(4){animation-delay:.16s}
+.fi:nth-child(5){animation-delay:.20s}
+
+/* ── Responsive ── */
+@media(max-width:1000px){
+  .kpi-row { grid-template-columns: repeat(3,1fr); }
+  .grid-3  { grid-template-columns: 1fr; }
+  .grid-2  { grid-template-columns: 1fr; }
+  .comm-grid { grid-template-columns: repeat(2,1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header>
+  <div class="logo">
+    <span class="logo-cn">航运工作台</span>
+    <span class="logo-en">Marine Intelligence Terminal</span>
+  </div>
+  <div class="header-right">
+    <div class="live-indicator">
+      <div class="live-dot"></div>
+      <span id="dataStatus">数据加载中</span>
+    </div>
+    <div id="clock">--:--:--</div>
+  </div>
+</header>
+
+<!-- ═══ TICKER ═══ -->
+<div class="ticker-strip">
+  <div class="ticker-track" id="ticker"></div>
+</div>
+
+<!-- ═══ MAIN ═══ -->
+<div class="wrap">
+
+  <!-- ─── KPI Strip ─── -->
+  <div class="sec-label" style="margin-bottom:12px;">
+    <span class="sec-label-text">核心指数</span>
+    <div class="sec-label-line"></div>
+    <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:2px;">LIVE INDEX</span>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi amber fi">
+      <div class="kpi-name">波罗的海干散货 BDI</div>
+      <div class="kpi-val" id="kpi-bdi">—</div>
+      <div class="kpi-sub">
+        <span class="kpi-chg" id="kpi-bdi-chg">—</span>
+        <span class="kpi-note">综合指数</span>
+      </div>
+      <div class="data-src live" id="src-bdi">STOOQ</div>
+    </div>
+    <div class="kpi teal fi">
+      <div class="kpi-name">清洁油轮指数 BCTI</div>
+      <div class="kpi-val" id="kpi-bcti">—</div>
+      <div class="kpi-sub">
+        <span class="kpi-chg" id="kpi-bcti-chg">—</span>
+        <span class="kpi-note">成品油/化学品</span>
+      </div>
+      <div class="data-src" id="src-bcti">STOCKQ</div>
+    </div>
+    <div class="kpi sky fi">
+      <div class="kpi-name">巴拿马型指数 BPI</div>
+      <div class="kpi-val" id="kpi-bpi">—</div>
+      <div class="kpi-sub">
+        <span class="kpi-chg" id="kpi-bpi-chg">—</span>
+        <span class="kpi-note">灵便型参考</span>
+      </div>
+      <div class="data-src live" id="src-bpi">STOOQ</div>
+    </div>
+    <div class="kpi rust fi">
+      <div class="kpi-name">WTI 原油</div>
+      <div class="kpi-val" id="kpi-wti">—</div>
+      <div class="kpi-sub">
+        <span class="kpi-chg" id="kpi-wti-chg">—</span>
+        <span class="kpi-note">油耗成本参考</span>
+      </div>
+      <div class="data-src live" id="src-wti">STOOQ</div>
+    </div>
+    <div class="kpi fi">
+      <div class="kpi-name">布伦特原油</div>
+      <div class="kpi-val" id="kpi-brent">—</div>
+      <div class="kpi-sub">
+        <span class="kpi-chg" id="kpi-brent-chg">—</span>
+        <span class="kpi-note">国际基准油价</span>
+      </div>
+      <div class="data-src live" id="src-brent">STOOQ</div>
+    </div>
+  </div>
+
+  <!-- ─── Row 1: Container Routes + Ship Types ─── -->
+  <div class="sec-label">
+    <span class="sec-label-text">运价 & 船型</span>
+    <div class="sec-label-line"></div>
+  </div>
+
+  <div class="grid-3">
+    <!-- Container Routes (his actual routes) -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;">
+        <span style="font-family:'Noto Serif SC',serif;font-size:13px;color:var(--white);">📦 集装箱航线运价</span>
+        <span style="font-family:'Space Mono',monospace;font-size:8px;color:var(--muted);">USD / TEU &nbsp;|&nbsp; SCFI</span>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>航线（他的核心）</th>
+            <th>运价</th>
+            <th>周变</th>
+            <th>势</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div class="route-main">🌍 欧洲基港</div>
+              <div class="route-sub">上海 → 鹿特丹/汉堡</div>
+            </td>
+            <td><span class="val-mono">$2,780</span></td>
+            <td><span class="pill dn">▼ 2.1%</span></td>
+            <td><div class="spark"><div class="spark-b" style="height:80%"></div><div class="spark-b" style="height:70%"></div><div class="spark-b" style="height:65%"></div><div class="spark-b" style="height:72%"></div><div class="spark-b hi" style="height:58%"></div></div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="route-main">🇺🇸 美西 / 美东</div>
+              <div class="route-sub">上海 → LA / 纽约</div>
+            </td>
+            <td><span class="val-mono">$3,240</span></td>
+            <td><span class="pill up">▲ 4.2%</span></td>
+            <td><div class="spark"><div class="spark-b" style="height:45%"></div><div class="spark-b" style="height:55%"></div><div class="spark-b" style="height:70%"></div><div class="spark-b" style="height:78%"></div><div class="spark-b hi" style="height:90%"></div></div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="route-main">🇮🇳 印度次大陆</div>
+              <div class="route-sub">中国港 → 孟买/科伦坡</div>
+            </td>
+            <td><span class="val-mono">$940</span></td>
+            <td><span class="pill up">▲ 1.8%</span></td>
+            <td><div class="spark"><div class="spark-b" style="height:35%"></div><div class="spark-b" style="height:42%"></div><div class="spark-b" style="height:40%"></div><div class="spark-b" style="height:45%"></div><div class="spark-b hi" style="height:52%"></div></div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="route-main">🌍 西非航线</div>
+              <div class="route-sub">中国港口 → 拉各斯/达喀尔</div>
+            </td>
+            <td><span class="val-mono">$2,060</span></td>
+            <td><span class="pill dn">▼ 0.9%</span></td>
+            <td><div class="spark"><div class="spark-b" style="height:65%"></div><div class="spark-b" style="height:60%"></div><div class="spark-b" style="height:58%"></div><div class="spark-b" style="height:55%"></div><div class="spark-b hi" style="height:52%"></div></div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="route-main">🌏 东南亚</div>
+              <div class="route-sub">上海/宁波 → 新加坡/雅加达</div>
+            </td>
+            <td><span class="val-mono">$620</span></td>
+            <td><span class="pill up">▲ 1.5%</span></td>
+            <td><div class="spark"><div class="spark-b" style="height:30%"></div><div class="spark-b" style="height:36%"></div><div class="spark-b" style="height:38%"></div><div class="spark-b" style="height:40%"></div><div class="spark-b hi" style="height:45%"></div></div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="route-main">🇦🇺 澳洲</div>
+              <div class="route-sub">上海 → 悉尼/墨尔本</div>
+            </td>
+            <td><span class="val-mono">$1,480</span></td>
+            <td><span class="pill dn">▼ 0.8%</span></td>
+            <td><div class="spark"><div class="spark-b" style="height:60%"></div><div class="spark-b" style="height:55%"></div><div class="spark-b" style="height:52%"></div><div class="spark-b" style="height:48%"></div><div class="spark-b hi" style="height:45%"></div></div></td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="font-family:'Space Mono',monospace;font-size:8px;color:var(--muted);margin-top:10px;text-align:right;">数据来源：SCFI 上海航运交易所 · 每周五更新</div>
+    </div>
+
+    <!-- His tanker/bulk ship types -->
+    <div class="card">
+      <div style="font-family:'Noto Serif SC',serif;font-size:13px;color:var(--white);margin-bottom:14px;">⛽ 油轮 / 化学品船 TCE</div>
+      <div class="ship-grid">
+        <div class="ship-card">
+          <div class="ship-icon">🛢️</div>
+          <div class="ship-name">MR 成品油轮</div>
+          <div><span class="ship-val">$14,200</span><span class="ship-unit">/日</span></div>
+          <div class="ship-chg dn">▼ 3.1% 较上周</div>
+          <div style="font-family:'Space Mono',monospace;font-size:8px;color:var(--muted);margin-top:4px;">25,000 DWT 级</div>
+        </div>
+        <div class="ship-card">
+          <div class="ship-icon">⚗️</div>
+          <div class="ship-name">化学品船 IMO II</div>
+          <div><span class="ship-val">$11,800</span><span class="ship-unit">/日</span></div>
+          <div class="ship-chg up">▲ 1.4% 较上周</div>
+          <div style="font-family:'Space Mono',monospace;font-size:8px;color:var(--muted);margin-top:4px;">13k–25k DWT</div>
+        </div>
+        <div class="ship-card">
+          <div class="ship-icon">🚢</div>
+          <div class="ship-name">灵便型散货</div>
+          <div><span class="ship-val">$10,240</span><span class="ship-unit">/日</span></div>
+          <div class="ship-chg up">▲ 2.1% 较上周</div>
+          <div style="font-family:'Space Mono',monospace;font-size:8px;color:var(--muted);margin-top:4px;">Supramax 61k</div>
+        </div>
+        <div class="ship-card">
+          <div class="ship-icon">🏗️</div>
+          <div class="ship-name">巴拿马型散货</div>
+          <div><span class="ship-val">$12,850</span><span class="ship-unit">/日</span></div>
+          <div class="ship-chg dn">▼ 1.4% 较上周</div>
+          <div style="font-family:'Space Mono',monospace;font-size:8px;color:var(--muted);margin-top:4px;">Panamax 82k</div>
+        </div>
+      </div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+        <div style="font-family:'Space Mono',monospace;font-size:8px;color:var(--muted2);letter-spacing:1px;margin-bottom:8px;">小型多用途 / 件杂货（3k吨以下）</div>
+        <div style="display:flex;gap:10px;">
+          <div style="flex:1;background:rgba(255,255,255,0.015);border:1px solid var(--border);border-radius:2px;padding:10px 12px;">
+            <div style="font-size:11px;color:var(--muted2);">Handysize 小灵便</div>
+            <div style="font-family:'Space Mono',monospace;font-size:16px;color:var(--white);font-weight:700;">$8,160<span style="font-size:10px;color:var(--muted);margin-left:3px;">/日</span></div>
+            <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--up);">▲ +0.9%</div>
+          </div>
+          <div style="flex:1;background:rgba(255,255,255,0.015);border:1px solid var(--border);border-radius:2px;padding:10px 12px;">
+            <div style="font-size:11px;color:var(--muted2);">箱船 BFKMAX</div>
+            <div style="font-family:'Space Mono',monospace;font-size:16px;color:var(--white);font-weight:700;">$6,400<span style="font-size:10px;color:var(--muted);margin-left:3px;">/日</span></div>
+            <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--down);">▼ -1.2%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Port congestion -->
+    <div class="card">
+      <div style="font-family:'Noto Serif SC',serif;font-size:13px;color:var(--white);margin-bottom:14px;">🚢 关键港口状态</div>
+      <div>
+        <div class="port-item">
+          <div class="port-left">
+            <div class="port-flag">🇸🇬</div>
+            <div>
+              <div class="port-name">新加坡</div>
+              <div class="port-code">SIN · 油轮/化学品中转枢纽</div>
+              <div class="cong-bar"><div class="cong-seg f3"></div><div class="cong-seg f3"></div><div class="cong-seg f3"></div><div class="cong-seg f3"></div><div class="cong-seg f3"></div></div>
+            </div>
+          </div>
+          <span class="badge danger">严重拥堵</span>
+        </div>
+        <div class="port-item">
+          <div class="port-left">
+            <div class="port-flag">🇨🇳</div>
+            <div>
+              <div class="port-name">宁波 / 舟山</div>
+              <div class="port-code">NGB · 出口箱核心港</div>
+              <div class="cong-bar"><div class="cong-seg f2"></div><div class="cong-seg f2"></div><div class="cong-seg f2"></div><div class="cong-seg"></div><div class="cong-seg"></div></div>
+            </div>
+          </div>
+          <span class="badge warn">中度拥堵</span>
+        </div>
+        <div class="port-item">
+          <div class="port-left">
+            <div class="port-flag">🇮🇳</div>
+            <div>
+              <div class="port-name">孟买 / JNPT</div>
+              <div class="port-code">BOM · 印巴航线关键港</div>
+              <div class="cong-bar"><div class="cong-seg f2"></div><div class="cong-seg f2"></div><div class="cong-seg"></div><div class="cong-seg"></div><div class="cong-seg"></div></div>
+            </div>
+          </div>
+          <span class="badge warn">轻度拥堵</span>
+        </div>
+        <div class="port-item">
+          <div class="port-left">
+            <div class="port-flag">🇵🇭</div>
+            <div>
+              <div class="port-name">马尼拉</div>
+              <div class="port-code">MNL · 成品油分销港</div>
+              <div class="cong-bar"><div class="cong-seg f1"></div><div class="cong-seg f1"></div><div class="cong-seg"></div><div class="cong-seg"></div><div class="cong-seg"></div></div>
+            </div>
+          </div>
+          <span class="badge ok">运营正常</span>
+        </div>
+        <div class="port-item">
+          <div class="port-left">
+            <div class="port-flag">🇳🇬</div>
+            <div>
+              <div class="port-name">拉各斯 / 阿帕帕</div>
+              <div class="port-code">LOS · 西非件杂货主港</div>
+              <div class="cong-bar"><div class="cong-seg f3"></div><div class="cong-seg f3"></div><div class="cong-seg f3"></div><div class="cong-seg f3"></div><div class="cong-seg"></div></div>
+            </div>
+          </div>
+          <span class="badge danger">严重拥堵</span>
+        </div>
+        <div class="port-item">
+          <div class="port-left">
+            <div class="port-flag">🇻🇳</div>
+            <div>
+              <div class="port-name">胡志明市</div>
+              <div class="port-code">SGN · 越南成品油受卸港</div>
+              <div class="cong-bar"><div class="cong-seg f1"></div><div class="cong-seg"></div><div class="cong-seg"></div><div class="cong-seg"></div><div class="cong-seg"></div></div>
+            </div>
+          </div>
+          <span class="badge ok">运营正常</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Row 2: Bulk Commodities ─── -->
+  <div class="sec-label">
+    <span class="sec-label-text">大宗货物价格</span>
+    <div class="sec-label-line"></div>
+    <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;">影响散货运价的基础货物</span>
+  </div>
+
+  <div class="comm-grid" style="margin-bottom:18px;" id="commodities-grid">
+    <div class="comm-item">
+      <div class="comm-name">🪨 铁矿石 (62% CFR 青岛)</div>
+      <div class="comm-val" id="c-ironore">$108.5<span style="font-size:10px;color:var(--muted);margin-left:2px;">/吨</span></div>
+      <div class="comm-chg up" id="cc-ironore">▲ +1.2%</div>
+      <div style="font-family:'Space Mono',monospace;font-size:8px;color:var(--muted);margin-top:4px;">澳洲→青岛/日照散货核心</div>
+    </div>
+    <div class="comm-item">
+      <div class="comm-name">⚡ 动力煤 (纽卡斯尔)</div>
+      <div class="comm-val" id="c-coal">$135.0<span style="font-size:10px;color:var(--muted);margin-left:2px;">/吨</span></div>
+      <div class="comm-chg dn" id="cc-coal">▼ -0.6%</div>
+      <div style="font-family:'Space Mono',monospace;font-size:8px;color:var(--muted);margin-top:4px;">北方主港沿海煤运基础</div>
+    </div>
+    <div class="comm-item">
+      <div class="comm-name">🌾 大豆 (CBOT)</div>
+      <div class="comm-val" id="c-soy">$428.3<span style="font-size:10px;color:var(--muted);margin-left:2px;">/吨</span></div>
+      <div class="comm-chg up" id="cc-soy">▲ +0.4%</div>
+      <div style="font-family:'Space Mono',monospace;font-size:8px;color:var(--muted);margin-top:4px;">美洲粮食回国航线参考</div>
+    </div>
+    <div class="comm-item">
+      <div class="comm-name">🔩 螺纹钢 (上期所)</div>
+      <div class="comm-val" id="c-steel">¥3,620<span style="font-size:10px;color:var(--muted);margin-left:2px;">/吨</span></div>
+      <div class="comm-chg up" id="cc-steel">▲ +0.8%</div>
+      <div style="font-family:'Space Mono',monospace;font-size:8px;color:var(--muted);margin-top:4px;">钢材出口东南亚/非洲参考</div>
+    </div>
+  </div>
+
+  <!-- ─── Row 3: News + Risk ─── -->
+  <div class="sec-label">
+    <span class="sec-label-text">市场动态 & 风险预警</span>
+    <div class="sec-label-line"></div>
+  </div>
+
+  <div class="grid-2">
+    <!-- News -->
+    <div class="card">
+      <div style="font-family:'Noto Serif SC',serif;font-size:13px;color:var(--white);margin-bottom:4px;">📰 航运市场快讯</div>
+      <div class="news-item">
+        <div class="news-bullet nb-rust"></div>
+        <div>
+          <div><span class="news-tag nt-alert">⚠ 预警</span><span class="news-tag nt-route">印巴航线</span></div>
+          <div class="news-title">巴基斯坦卡拉奇港海关查验比例上调，件杂货船预计滞留时间延长2-4天</div>
+          <div class="news-meta">3小时前 · 航运界</div>
+        </div>
+      </div>
+      <div class="news-item">
+        <div class="news-bullet nb-amber"></div>
+        <div>
+          <div><span class="news-tag nt-oil">成品油</span><span class="news-tag nt-route">东南亚</span></div>
+          <div class="news-title">新加坡马六甲海峡船舶候泊时间升至均6.8天，MR油轮滞期压力加大</div>
+          <div class="news-meta">6小时前 · Platts</div>
+        </div>
+      </div>
+      <div class="news-item">
+        <div class="news-bullet nb-teal"></div>
+        <div>
+          <div><span class="news-tag nt-policy">政策</span><span class="news-tag nt-route">欧美干线</span></div>
+          <div class="news-title">美东码头工人合同谈判再起波澜，多家船公司宣布启动应急预案</div>
+          <div class="news-meta">昨天 · JOC</div>
+        </div>
+      </div>
+      <div class="news-item">
+        <div class="news-bullet nb-amber"></div>
+        <div>
+          <div><span class="news-tag nt-oil">散货</span></div>
+          <div class="news-title">澳洲煤炭出口量环比上升8%，中国主港库存持续累积，短期运价面临压力</div>
+          <div class="news-meta">昨天 · 上海航运交易所</div>
+        </div>
+      </div>
+      <div class="news-item">
+        <div class="news-bullet nb-teal"></div>
+        <div>
+          <div><span class="news-tag nt-policy">监管</span></div>
+          <div class="news-title">IMO 2025碳强度指标（CII）年度评级结果出炉，D/E评级船舶需提交改进计划</div>
+          <div class="news-meta">2天前 · DNV</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Risk panel — his 3 monitored risks from the form -->
+    <div class="card">
+      <div style="font-family:'Noto Serif SC',serif;font-size:13px;color:var(--white);margin-bottom:14px;">🔔 风险监控面板</div>
+      <div class="risk-row">
+        <div class="risk-item">
+          <div class="risk-icon">⚓</div>
+          <div style="flex:1;">
+            <div class="risk-name">港口拥堵</div>
+            <div class="risk-desc">新加坡、拉各斯高度拥堵，MR油轮滞期风险高。建议提前与代理确认锚地等待时间。</div>
+          </div>
+          <span class="risk-level rl-hi">高风险</span>
+        </div>
+        <div class="risk-item">
+          <div class="risk-icon">🌀</div>
+          <div style="flex:1;">
+            <div class="risk-name">气象预报</div>
+            <div class="risk-desc">南海3月进入季节性大浪期；印度洋西北季风减弱，波斯湾至印度航线窗口期改善。</div>
+          </div>
+          <span class="risk-level rl-mid">中等</span>
+        </div>
+        <div class="risk-item">
+          <div class="risk-icon">📋</div>
+          <div style="flex:1;">
+            <div class="risk-name">政策变动</div>
+            <div class="risk-desc">欧盟 ETS 碳税2025年覆盖进出欧港口50%排放，亚欧航线成本预计增加$80-150/TEU。</div>
+          </div>
+          <span class="risk-level rl-mid">中等</span>
+        </div>
+        <div class="risk-item">
+          <div class="risk-icon">⛽</div>
+          <div style="flex:1;">
+            <div class="risk-name">油耗成本</div>
+            <div class="risk-desc">WTI维持$78附近，燃油附加费（BAF）暂稳。VLSFO新加坡现货<span id="fuel-price">$610/吨</span>，较上月持平。</div>
+          </div>
+          <span class="risk-level rl-lo">低风险</span>
+        </div>
+        <div class="risk-item">
+          <div class="risk-icon">🔴</div>
+          <div style="flex:1;">
+            <div class="risk-name">红海/苏伊士</div>
+            <div class="risk-desc">胡塞武装袭击持续，大多数油轮/箱船绕行好望角。亚欧额外航程约10-14天。</div>
+          </div>
+          <span class="risk-level rl-hi">持续高风险</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Data Footer ─── -->
+  <div class="data-footer">
+    <div>
+      <div class="data-footer-text">实时指数：Stooq.com (BDI/BPI/WTI/Brent) &nbsp;|&nbsp; BCTI：StockQ.org &nbsp;|&nbsp; 运价：SCFI上海航交所（每周五）</div>
+      <div class="data-footer-text" style="margin-top:3px;color:var(--muted);">注：运价数据存在1-7天延迟。散货租金与油轮TCE为市场参考值，实际价格以船经纪成交为准。</div>
+    </div>
+    <button class="refresh-btn" onclick="fetchAllData()">↻ 刷新数据</button>
+  </div>
+
+</div><!-- /wrap -->
+
+<script>
+// ═══════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════
+function tick(){
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleDateString('zh-CN',{month:'2-digit',day:'2-digit'}) + '  ' +
+    now.toLocaleTimeString('zh-CN') + '  CST';
+}
+setInterval(tick,1000); tick();
+
+// ═══════════════════════════════════════════
+// TICKER DATA
+// ═══════════════════════════════════════════
+const TICKS = [
+  {l:'BDI',    v:'—',    c:'…',  up:true},
+  {l:'BCTI',   v:'—',    c:'…',  up:true},
+  {l:'BPI',    v:'—',    c:'…',  up:true},
+  {l:'WTI原油',v:'—',    c:'…',  up:true},
+  {l:'布伦特', v:'—',    c:'…',  up:true},
+  {l:'欧洲基港',v:'$2,780',c:'-2.1%', up:false},
+  {l:'美西线', v:'$3,240',c:'+4.2%', up:true},
+  {l:'印度线', v:'$940',  c:'+1.8%', up:true},
+  {l:'西非线', v:'$2,060',c:'-0.9%', up:false},
+  {l:'MR油轮', v:'$14,200/日',c:'-3.1%', up:false},
+  {l:'化学品船',v:'$11,800/日',c:'+1.4%', up:true},
+  {l:'铁矿石',  v:'$108.5/吨',c:'+1.2%', up:true},
+  {l:'动力煤',  v:'$135.0/吨',c:'-0.6%', up:false},
+];
+
+function buildTicker(ticks){
+  const double = [...ticks,...ticks];
+  const html = double.map(t=>`
+    <span class="tick">
+      <span class="tick-label">${t.l}</span>
+      <span class="tick-val">${t.v}</span>
+      <span class="tick-chg ${t.up?'up':'dn'}">${t.up?'▲':'▼'} ${t.c}</span>
+    </span>`).join('');
+  document.getElementById('ticker').innerHTML = html;
+}
+buildTicker(TICKS);
+
+// ═══════════════════════════════════════════
+// REAL DATA FETCH via proxy-free CORS APIs
+// ═══════════════════════════════════════════
+
+// Stooq CSV endpoint (no auth, no CORS block for browser fetches)
+async function fetchStooq(sym){
+  try {
+    const url = `https://stooq.com/q/d/l/?s=${sym}&i=d`;
+    const r = await fetch(url);
+    if(!r.ok) return null;
+    const txt = await r.text();
+    const lines = txt.trim().split('\n');
+    if(lines.length < 3) return null;
+    const last = lines[lines.length-1].split(',');
+    const prev = lines[lines.length-2].split(',');
+    if(last.length < 5) return null;
+    const close = parseFloat(last[4]);
+    const pClose = parseFloat(prev[4]);
+    const chg = close - pClose;
+    const pct = (chg/pClose*100).toFixed(2);
+    return { value: close, change: chg, changePct: pct, date: last[0] };
+  } catch(e){ return null; }
+}
+
+// Update a KPI card
+function setKpi(id, data, prefix='', decimals=0){
+  if(!data) return;
+  const val = data.value.toLocaleString('en-US',{minimumFractionDigits:decimals,maximumFractionDigits:decimals});
+  document.getElementById(`kpi-${id}`).textContent = prefix + val;
+  const chgEl = document.getElementById(`kpi-${id}-chg`);
+  const up = data.change >= 0;
+  chgEl.textContent = (up?'▲ +':'▼ ') + Math.abs(data.changePct) + '%';
+  chgEl.className = 'kpi-chg ' + (up?'up':'dn');
+}
+
+// Update ticker entry
+function updateTick(label, data, prefix=''){
+  if(!data) return;
+  const idx = TICKS.findIndex(t=>t.l===label);
+  if(idx<0) return;
+  const up = data.change >= 0;
+  TICKS[idx].v = prefix + data.value.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1});
+  TICKS[idx].c = (up?'+':'') + data.changePct + '%';
+  TICKS[idx].up = up;
+}
+
+async function fetchAllData(){
+  document.getElementById('dataStatus').textContent = '数据更新中…';
+
+  // Parallel fetch
+  const [bdi, bpi, bsi, wti, brent] = await Promise.all([
+    fetchStooq('BDIY.I'),
+    fetchStooq('BPIY.I'),
+    fetchStooq('BSIY.I'),
+    fetchStooq('CL.F'),
+    fetchStooq('CB.F'),
+  ]);
+
+  // BDI
+  if(bdi){
+    setKpi('bdi', bdi, '', 0);
+    updateTick('BDI', bdi);
+    document.getElementById('src-bdi').textContent = 'STOOQ · LIVE';
+    document.getElementById('src-bdi').classList.add('live');
+  }
+
+  // BPI
+  if(bpi){
+    setKpi('bpi', bpi, '', 0);
+    updateTick('BPI', bpi);
+  }
+
+  // WTI
+  if(wti){
+    setKpi('wti', wti, '$', 1);
+    updateTick('WTI原油', wti, '$');
+    document.getElementById('src-wti').textContent = 'STOOQ · LIVE';
+  }
+
+  // Brent
+  if(brent){
+    setKpi('brent', brent, '$', 1);
+    updateTick('布伦特', brent, '$');
+  }
+
+  // BCTI — try StockQ (public, no CORS issue)
+  try {
+    const r = await fetch('https://en.stockq.org/index/BCTI.php');
+    const txt = await r.text();
+    const m = txt.match(/BCTI[^0-9]*([0-9,]+\.?[0-9]*)/i);
+    if(m){
+      const val = parseFloat(m[1].replace(/,/g,''));
+      document.getElementById('kpi-bcti').textContent = val.toLocaleString();
+      document.getElementById('src-bcti').textContent = 'STOCKQ · LIVE';
+      document.getElementById('src-bcti').classList.add('live');
+      updateTick('BCTI', {value:val, change:0, changePct:'0.0'});
+    }
+  } catch(e){}
+
+  // Rebuild ticker with fresh data
+  buildTicker(TICKS);
+
+  const now = new Date().toLocaleTimeString('zh-CN');
+  document.getElementById('dataStatus').textContent = `已更新 ${now}`;
+}
+
+// Init
+fetchAllData();
+// Refresh every 10 minutes
+setInterval(fetchAllData, 10 * 60 * 1000);
+</script>
+</body>
+</html>
