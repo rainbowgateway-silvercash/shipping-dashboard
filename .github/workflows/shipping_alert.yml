@@ -1,1 +1,45 @@
+name: 航运预警推送
 
+on:
+  schedule:
+    - cron: '50 23 * * 1-5'
+    - cron: '0 3 * * 1-5'
+    - cron: '0 8 * * 1-5'
+    - cron: '0 12 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖
+        run: pip install requests
+
+      - name: 运行预警
+        env:
+          SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
+        run: |
+          HOUR=$(date -u +%H)
+          if [ "$HOUR" = "23" ]; then
+            python alert_system_ci.py --summary
+          else
+            python alert_system_ci.py
+          fi
+
+      - name: 保存日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: log-${{ github.run_number }}
+          path: alert_log.txt
+          retention-days: 7
